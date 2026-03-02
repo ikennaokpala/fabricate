@@ -121,6 +121,30 @@ impl BuildableFactory<TestRating> for RatingFactory {
     }
 
     async fn persist(&self, entity: TestRating, ctx: &mut FactoryContext) -> Result<TestRating> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "ride_id": entity.ride_id.to_string(),
+                "rater_id": entity.rater_id.to_string(),
+                "ratee_id": entity.ratee_id.to_string(),
+                "role_rated": entity.role_rated,
+                "overall_score": entity.overall_score,
+                "safety_score": entity.safety_score,
+                "cleanliness_score": entity.cleanliness_score,
+                "communication_score": entity.communication_score,
+                "timeliness_score": entity.timeliness_score,
+                "review_text": entity.review_text,
+            });
+            let resp = ctx.test_post("/__test__/ratings", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(

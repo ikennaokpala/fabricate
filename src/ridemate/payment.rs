@@ -251,6 +251,25 @@ impl BuildableFactory<TestWallet> for WalletFactory {
     }
 
     async fn persist(&self, entity: TestWallet, ctx: &mut FactoryContext) -> Result<TestWallet> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "user_id": entity.user_id.to_string(),
+                "balance_cents": entity.balance_cents,
+                "pending_balance_cents": entity.pending_balance_cents,
+                "is_active": entity.is_active,
+                "is_verified": entity.is_verified,
+            });
+            let resp = ctx.test_post("/__test__/wallets", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(
@@ -365,6 +384,30 @@ impl BuildableFactory<TestPayment> for PaymentFactory {
     }
 
     async fn persist(&self, entity: TestPayment, ctx: &mut FactoryContext) -> Result<TestPayment> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "ride_id": entity.ride_id.to_string(),
+                "user_id": entity.user_id.to_string(),
+                "payment_method_id": entity.payment_method_id.map(|id| id.to_string()),
+                "stripe_payment_intent_id": entity.stripe_payment_intent_id,
+                "amount_cents": entity.amount_cents,
+                "platform_fee_cents": entity.platform_fee_cents,
+                "driver_payout_cents": entity.driver_payout_cents,
+                "tip_cents": entity.tip_cents,
+                "currency": entity.currency,
+                "status": entity.status,
+            });
+            let resp = ctx.test_post("/__test__/payments", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(

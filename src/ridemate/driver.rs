@@ -70,7 +70,7 @@ impl BuildableFactory<TestDriverProfile> for DriverProfileFactory {
         let color = COLORS[(n as usize - 1) % COLORS.len()];
         let plate = ctx.sequences.plate();
         let now = Utc::now();
-        let expiry = NaiveDate::from_ymd_opt(2027, 12, 31).unwrap();
+        let expiry = NaiveDate::from_ymd_opt(2027, 12, 31).expect("valid date: 2027-12-31");
 
         TestDriverProfile {
             user_id: Uuid::new_v4(),

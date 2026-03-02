@@ -151,6 +151,36 @@ impl BuildableFactory<TestTripPost> for TripPostFactory {
         entity: TestTripPost,
         ctx: &mut FactoryContext,
     ) -> Result<TestTripPost> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "driver_id": entity.driver_id.to_string(),
+                "origin_address": entity.origin_address,
+                "origin_lat": entity.origin_lat,
+                "origin_lng": entity.origin_lng,
+                "destination_address": entity.destination_address,
+                "destination_lat": entity.destination_lat,
+                "destination_lng": entity.destination_lng,
+                "departure_time": entity.departure_time.to_rfc3339(),
+                "total_seats": entity.total_seats,
+                "available_seats": entity.available_seats,
+                "price_per_seat_cents": entity.price_per_seat_cents,
+                "booking_mode": entity.booking_mode,
+                "distance_km": entity.distance_km,
+                "duration_minutes": entity.duration_minutes,
+                "status": entity.status,
+                "notes": entity.notes,
+            });
+            let resp = ctx.test_post("/__test__/trip-posts", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(
@@ -281,6 +311,28 @@ impl BuildableFactory<TestTripBooking> for TripBookingFactory {
         entity: TestTripBooking,
         ctx: &mut FactoryContext,
     ) -> Result<TestTripBooking> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "trip_id": entity.trip_id.to_string(),
+                "passenger_id": entity.passenger_id.to_string(),
+                "seats_booked": entity.seats_booked,
+                "total_price_cents": entity.total_price_cents,
+                "status": entity.status,
+                "pickup_point_address": entity.pickup_point_address,
+                "pickup_point_lat": entity.pickup_point_lat,
+                "pickup_point_lng": entity.pickup_point_lng,
+            });
+            let resp = ctx.test_post("/__test__/trip-bookings", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(

@@ -129,6 +129,30 @@ impl BuildableFactory<TestSafetyIncident> for SafetyIncidentFactory {
         entity: TestSafetyIncident,
         ctx: &mut FactoryContext,
     ) -> Result<TestSafetyIncident> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "ride_id": entity.ride_id.to_string(),
+                "user_id": entity.user_id.to_string(),
+                "driver_id": entity.driver_id.map(|id| id.to_string()),
+                "incident_type": entity.incident_type,
+                "status": entity.status,
+                "severity": entity.severity,
+                "title": entity.title,
+                "description": entity.description,
+                "incident_address": entity.incident_address,
+                "emergency_contact_notified": entity.emergency_contact_notified,
+            });
+            let resp = ctx.test_post("/__test__/safety-incidents", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(
@@ -239,6 +263,27 @@ impl BuildableFactory<TestSafetyContact> for SafetyContactFactory {
         entity: TestSafetyContact,
         ctx: &mut FactoryContext,
     ) -> Result<TestSafetyContact> {
+        // HTTP API mode
+        if ctx.http_client.is_some() {
+            let body = serde_json::json!({
+                "user_id": entity.user_id.to_string(),
+                "name": entity.name,
+                "relationship": entity.relationship,
+                "phone_number": entity.phone_number,
+                "email": entity.email,
+                "is_primary": entity.is_primary,
+                "is_verified": entity.is_verified,
+            });
+            let resp = ctx.test_post("/__test__/safety-contacts", &body).await?;
+            let mut result = entity.clone();
+            if let Some(id) = resp.get("id").and_then(|v| v.as_str()) {
+                if let Ok(uuid) = Uuid::parse_str(id) {
+                    result.id = uuid;
+                }
+            }
+            return Ok(result);
+        }
+
         #[cfg(feature = "postgres")]
         if let Some(pool) = &ctx.pool {
             sqlx::query(

@@ -51,6 +51,17 @@ enum Commands {
 
     /// List available factories, traits, and personas
     List,
+
+    /// Check backend health / connectivity
+    Health {
+        /// Backend API base URL (e.g., http://localhost:8080)
+        #[arg(long, default_value = "http://localhost:8080")]
+        target: String,
+
+        /// Test API key for /__test__/ endpoints
+        #[arg(long, default_value = "test-key")]
+        test_key: String,
+    },
 }
 
 #[tokio::main]
@@ -76,6 +87,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::List => {
             run_list();
+        }
+        Commands::Health { target, test_key } => {
+            run_health(target, test_key).await?;
         }
     }
 
@@ -153,6 +167,26 @@ async fn run_reset(
     ctx.test_post("/__test__/reset", &body).await?;
 
     println!("Reset complete.");
+    Ok(())
+}
+
+async fn run_health(
+    target: String,
+    test_key: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("fabricate: Checking backend health...");
+    println!("  Target: {target}");
+
+    let ctx = FactoryContext::http(&target).with_test_key(&test_key);
+    let healthy = ctx.health_check().await?;
+
+    if healthy {
+        println!("  Status: OK");
+    } else {
+        println!("  Status: UNHEALTHY");
+        std::process::exit(1);
+    }
+
     Ok(())
 }
 

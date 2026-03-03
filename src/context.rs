@@ -99,6 +99,27 @@ impl FactoryContext {
         self.overrides.clear();
     }
 
+    /// Check backend health by hitting the health endpoint.
+    pub async fn health_check(&self) -> crate::Result<bool> {
+        let client = self
+            .http_client
+            .as_ref()
+            .ok_or_else(|| crate::Error::Build("No HTTP client configured".into()))?;
+        let base = self
+            .base_url
+            .as_ref()
+            .ok_or_else(|| crate::Error::Build("No base URL configured".into()))?;
+
+        let url = format!("{base}/api/v1/health");
+        let resp = client
+            .get(&url)
+            .header("X-Test-Key", &self.test_key)
+            .send()
+            .await?;
+
+        Ok(resp.status().is_success())
+    }
+
     /// Make an authenticated POST to a `/__test__/` endpoint.
     pub async fn test_post<T: serde::Serialize>(
         &self,

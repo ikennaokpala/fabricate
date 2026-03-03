@@ -233,6 +233,9 @@ impl Personas {
     }
 
     /// Seed data via the backend's `/__test__/seed` API.
+    ///
+    /// Calls the backend's seed endpoint directly with `{ seed, scenario }`.
+    /// The backend handles all entity creation internally and returns IDs.
     pub async fn seed_via_api(
         ctx: &mut FactoryContext,
         scenarios: &[&str],
@@ -241,48 +244,116 @@ impl Personas {
         let mut drivers = Vec::new();
         let mut bookings = Vec::new();
         let mut completed_rides = Vec::new();
-        let mut trip_posts = Vec::new();
+        let trip_posts = Vec::new();
         let mut total = 0;
 
-        for scenario in scenarios {
-            match *scenario {
-                "rider" => {
-                    let r = Self::rider(ctx).await?;
-                    total += 3;
-                    riders.push(r);
+        // Map user-facing scenario names to backend Scenario enum values
+        let scenario_map: &[(&str, &str)] = &[
+            ("rider-books-ride", "rider_book_ride"),
+            ("driver-onboard", "driver_onboard"),
+            ("complete-ride", "complete_ride"),
+            ("payment-flow", "payment_flow"),
+            ("sos-emergency", "sos_emergency"),
+        ];
+
+        let resolve_scenario = |name: &str| -> Option<&str> {
+            scenario_map
+                .iter()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| *v)
+        };
+
+        // "full" seeds all 5 backend scenarios
+        let effective: Vec<&str> = if scenarios.contains(&"full") {
+            scenario_map.iter().map(|(_, v)| *v).collect()
+        } else {
+            scenarios
+                .iter()
+                .map(|s| resolve_scenario(s).unwrap_or(s))
+                .collect()
+        };
+
+        for backend_scenario in &effective {
+            let seed = ctx.sequence("seed");
+            let body = serde_json::json!({
+                "seed": seed,
+                "scenario": backend_scenario,
+            });
+            let resp = ctx.test_post("/__test__/seed", &body).await?;
+
+            // Parse the backend SeedResponse.entities into our persona types
+            let entities = resp.get("entities").cloned().unwrap_or_default();
+
+            if let Some(rider_id) = entities.get("rider_id").and_then(|v| v.as_str()) {
+                if let Ok(uid) = uuid::Uuid::parse_str(rider_id) {
+                    riders.push(RiderPersona {
+                        user_id: uid,
+                        email: entities.get("rider_email").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        full_name: "Test Rider".to_string(),
+                        phone: String::new(),
+                        wallet_balance_cents: 0,
+                        payment_method_card_last_four: String::new(),
+                        auth_token: entities.get("auth_token").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    });
+                    total += 1;
                 }
-                "driver" => {
-                    let d = Self::driver(ctx).await?;
-                    total += 3;
-                    drivers.push(d);
+            }
+
+            if let Some(driver_id) = entities.get("driver_id").and_then(|v| v.as_str()) {
+                if let Ok(uid) = uuid::Uuid::parse_str(driver_id) {
+                    drivers.push(DriverPersona {
+                        user_id: uid,
+                        email: entities.get("driver_email").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        full_name: "Test Driver".to_string(),
+                        phone: String::new(),
+                        vehicle_make: "Toyota".to_string(),
+                        vehicle_model: "Camry".to_string(),
+                        vehicle_year: 2024,
+                        vehicle_plate: String::new(),
+                        vehicle_color: String::new(),
+                        average_rating: 4.8,
+                        total_trips: 0,
+                        is_verified: true,
+                        wallet_balance_cents: 0,
+                        auth_token: None,
+                    });
+                    total += 1;
                 }
-                "driver-onboard" => {
-                    let d = Self::driver_onboard(ctx).await?;
-                    total += 2;
-                    drivers.push(d);
-                }
-                "rider-books-ride" => {
-                    let b = Self::rider_books_ride(ctx).await?;
-                    total += 7;
-                    bookings.push(b);
-                }
-                "complete-ride" => {
-                    let c = Self::complete_ride(ctx).await?;
-                    total += 7;
-                    completed_rides.push(c);
-                }
-                "driver-posts-trip" => {
-                    let t = Self::driver_posts_trip(ctx).await?;
-                    total += 4;
-                    trip_posts.push(t);
-                }
-                "full" => {
-                    return Self::seed_for_exploration(ctx).await;
-                }
-                other => {
-                    return Err(crate::Error::Persona(format!(
-                        "Unknown scenario: '{other}'. Available: rider, driver, driver-onboard, rider-books-ride, complete-ride, driver-posts-trip, full"
-                    )));
+            }
+
+            if let Some(ride_id) = entities.get("ride_id").and_then(|v| v.as_str()) {
+                if let Ok(rid) = uuid::Uuid::parse_str(ride_id) {
+                    // Determine which collection based on scenario
+                    match *backend_scenario {
+                        "rider_book_ride" => {
+                            if let (Some(rider), Some(driver)) = (riders.last().cloned(), drivers.last().cloned()) {
+                                bookings.push(BookingScenario {
+                                    rider,
+                                    driver,
+                                    ride_id: rid,
+                                    ride_status: "requested".to_string(),
+                                    pickup_address: "Test Pickup".to_string(),
+                                    destination_address: "Test Destination".to_string(),
+                                    estimated_price_cents: 2500,
+                                });
+                            }
+                        }
+                        "complete_ride" => {
+                            if let (Some(rider), Some(driver)) = (riders.last().cloned(), drivers.last().cloned()) {
+                                completed_rides.push(CompletedRideScenario {
+                                    rider,
+                                    driver,
+                                    ride_id: rid,
+                                    final_price_cents: 2500,
+                                    payment_status: "completed".to_string(),
+                                    driver_rating: Some(5),
+                                    rider_rating: Some(5),
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+                    total += 1;
                 }
             }
         }

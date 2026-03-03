@@ -135,7 +135,7 @@ impl FactoryContext {
             .as_ref()
             .ok_or_else(|| crate::Error::Build("No base URL configured".into()))?;
 
-        let url = format!("{base}{path}");
+        let url = format!("{base}/api/v1/test{path}");
         let resp = client
             .post(&url)
             .header("X-Test-Key", &self.test_key)
@@ -167,7 +167,7 @@ impl FactoryContext {
             .as_ref()
             .ok_or_else(|| crate::Error::Build("No base URL configured".into()))?;
 
-        let url = format!("{base}{path}");
+        let url = format!("{base}/api/v1/test{path}");
         let resp = client
             .post(&url)
             .header("X-Test-Key", &self.test_key)

@@ -1,8 +1,12 @@
 # fabricate
 
-[![Crates.io](https://img.shields.io/crates/v/fabricate.svg)](https://crates.io/crates/fabricate)
+[![Crates.io Version](https://img.shields.io/crates/v/fabricate)](https://crates.io/crates/fabricate)
+[![Crates.io Downloads](https://img.shields.io/crates/d/fabricate)](https://crates.io/crates/fabricate)
 [![docs.rs](https://img.shields.io/docsrs/fabricate)](https://docs.rs/fabricate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-2021_edition-orange.svg)](https://www.rust-lang.org)
+
+[crates.io](https://crates.io/crates/fabricate) | [API docs](https://docs.rs/fabricate) | [GitHub](https://github.com/ikennaokpala/fabricate)
 
 **FactoryBot-inspired test data factory for Rust + sqlx**
 

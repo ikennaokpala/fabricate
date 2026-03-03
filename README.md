@@ -31,6 +31,7 @@ fabricate brings the ergonomics of Ruby's [FactoryBot](https://github.com/though
 - [Architecture Overview](#architecture-overview)
 - [Cargo Features](#cargo-features)
 - [Error Handling](#error-handling)
+- [TypeScript Client](#typescript-client)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
@@ -678,6 +679,43 @@ Errors include helpful context. For example, requesting a non-existent trait:
 ```
 Trait 'nonexistent_trait' not registered. Available: ["verified", "unverified", "suspended", "premium", "driver", "admin"]
 ```
+
+---
+
+## TypeScript Client
+
+A TypeScript companion client is available in the `typescript/` directory. It provides the same entity creation capabilities via HTTP API calls to your backend's `/__test__/*` endpoints.
+
+### Quick Start
+
+```bash
+cd typescript
+npm install
+```
+
+### Usage
+
+```typescript
+import { Factory } from './src/index.js';
+
+const factory = new Factory();
+
+// Create entities
+const rider = await factory.create('rider');
+const driver = await factory.create('driver');
+const ride = await factory.create('ride');
+
+// Access auth tokens
+const token = factory.getAuthToken('rider');
+
+// Reset database between scenarios
+await factory.reset();
+```
+
+### Environment Variables
+
+- `SENTINEL_BACKEND_URL` — Backend test API base URL (default: `http://localhost:8080/api/v1/test`)
+- `TEST_API_KEY` — API key for test endpoints (default: `test-key`)
 
 ---
 
